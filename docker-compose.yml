@@ -1,0 +1,10 @@
+# For local development, we will be using AWS RDS for the database.
+services:
+  db:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Cloud_Project_1
+      MYSQL_DATABASE: Inventory
+    ports:
+      - "3306:3306"

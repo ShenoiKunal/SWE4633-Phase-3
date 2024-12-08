@@ -118,6 +118,7 @@ $conn->close();
 <nav class="bg-white shadow-lg mb-6">
     <div class="max-w-7xl mx-auto px-4">
         <div class="flex justify-between items-center py-4">
+            <a href="uploadfiles.php" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition duration-300 ml-4">Upload Files</a>
             <h1 class="text-2xl font-bold text-gray-800">Inventory Management</h1>
             <a href="index.php"
                class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition duration-300">Logout</a>

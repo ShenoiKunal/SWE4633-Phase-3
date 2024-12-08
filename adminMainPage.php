@@ -1,4 +1,11 @@
 <?php
+session_start();
+// Ensure only admins can access the page
+if (!isset($_SESSION['isAdmin']) || !$_SESSION['isAdmin']) {
+    header('Location: index.php');
+    exit();
+}
+
 // Database credentials
 $servername = "database-1.cn80gk2k0elm.us-east-2.rds.amazonaws.com";
 $username = "admin";
@@ -13,53 +20,73 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Insert user
-if (isset($_POST['newUserButton'])) {
-    $UserId = $_POST['user_id'];
-    $userPassword = $_POST['password'];
+// Add new user
+if (isset($_POST['addUserButton'])) {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+    $confirmPassword = $_POST['confirmPassword'];
+    $isAdmin = isset($_POST['isAdmin']) ? 1 : 0;
 
-    // Prepare and bind
-    $stmt = $conn->prepare("INSERT INTO users (userId, password) VALUES (?, ?)");
-    $stmt->bind_param("ss", $UserId, $userPassword);
-
-    if ($stmt->execute()) {
-        echo "<script>alert('New user created successfully');</script>";
+    if ($password !== $confirmPassword) {
+        echo "<script>alert('Passwords do not match');</script>";
     } else {
-        echo "<script>alert('Error: " . $stmt->error . "');</script>";
-    }
+        $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
 
-    // Close the statement
-    $stmt->close();
+        // Prepare and bind
+        $stmt = $conn->prepare("INSERT INTO AuthorizedUsers (username, password, isAdmin) VALUES (?, ?, ?)");
+        $stmt->bind_param("ssi", $username, $hashedPassword, $isAdmin);
+
+        if ($stmt->execute()) {
+            echo "<script>alert('New user added successfully');</script>";
+        } else {
+            echo "<script>alert('Error: " . $stmt->error . "');</script>";
+        }
+
+        $stmt->close();
+    }
 }
 
 // Insert item
 if (isset($_POST['newItemButton'])) {
     $itemId = $_POST['item_id'];
-    $itemQuantity = $_POST['item_quantity'];
-    $itemCost = $_POST['item_cost'];
     $itemName = $_POST['item_name'];
+    $itemCost = $_POST['item_cost'];
+    $itemQuantity = $_POST['item_quantity'];
 
     // Prepare and bind
     $stmt = $conn->prepare("INSERT INTO Items (item_id, item_name, item_price, item_qty) VALUES (?, ?, ?, ?)");
     $stmt->bind_param("isdi", $itemId, $itemName, $itemCost, $itemQuantity);
 
-    // Execute the statement
     if ($stmt->execute()) {
         echo "<script>alert('New item created successfully');</script>";
     } else {
         echo "<script>alert('Error: " . $stmt->error . "');</script>";
     }
 
-    // Close the statement
     $stmt->close();
 }
 
-// Increase Item Quantity
+// Remove item
+if (isset($_POST['removeItemButton'])) {
+    $itemId = $_POST['item_id'];
+
+    $stmt = $conn->prepare("DELETE FROM Items WHERE item_id = ?");
+    $stmt->bind_param("i", $itemId);
+
+    if ($stmt->execute()) {
+        echo "<script>alert('Item removed successfully');</script>";
+    } else {
+        echo "<script>alert('Error: " . $stmt->error . "');</script>";
+    }
+
+    $stmt->close();
+}
+
+// Increase item quantity
 if (isset($_POST['itemIncreaseButton'])) {
     $itemId = $_POST['increase_item_id'];
     $itemQuantity = $_POST['amount_increased'];
 
-    // Prepare and bind
     $stmt = $conn->prepare("UPDATE Items SET item_qty = item_qty + ? WHERE item_id = ?");
     $stmt->bind_param("ii", $itemQuantity, $itemId);
 
@@ -69,16 +96,14 @@ if (isset($_POST['itemIncreaseButton'])) {
         echo "<script>alert('Error: " . $stmt->error . "');</script>";
     }
 
-    // Close the statement
     $stmt->close();
 }
 
-// Decrease Item Quantity
+// Decrease item quantity
 if (isset($_POST['itemDecreaseButton'])) {
     $itemId = $_POST['decrease_item_id'];
     $itemQuantity = $_POST['amount_decreased'];
 
-    // Prepare and bind
     $stmt = $conn->prepare("UPDATE Items SET item_qty = item_qty - ? WHERE item_id = ?");
     $stmt->bind_param("ii", $itemQuantity, $itemId);
 
@@ -88,7 +113,6 @@ if (isset($_POST['itemDecreaseButton'])) {
         echo "<script>alert('Error: " . $stmt->error . "');</script>";
     }
 
-    // Close the statement
     $stmt->close();
 }
 
@@ -104,21 +128,14 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Management</title>
-    <!-- Include Tailwind CSS from CDN -->
+    <title>Admin Inventory Management</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Custom CSS for any additional styles -->
-    <style>
-        input[type="text"] {
-            @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm;
-        }
-    </style>
 </head>
 <body class="bg-gray-50">
 <nav class="bg-white shadow-lg mb-6">
     <div class="max-w-7xl mx-auto px-4">
         <div class="flex justify-between items-center py-4">
-            <h1 class="text-2xl font-bold text-gray-800">Inventory Management</h1>
+            <h1 class="text-2xl font-bold text-gray-800">Admin Inventory Management</h1>
             <a href="index.php"
                class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition duration-300">Logout</a>
         </div>
@@ -127,28 +144,61 @@ $conn->close();
 
 <div class="max-w-7xl mx-auto px-4 py-6">
     <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <!-- Add New User Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Add New User</h2>
+            <form action="" method="post" class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Username</label>
+                    <input type="text" name="username" required
+                           class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                    <input type="password" name="password" required
+                           class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Confirm Password</label>
+                    <input type="password" name="confirmPassword" required
+                           class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="isAdmin" class="form-checkbox text-gray-600">
+                        <span class="ml-2">Admin Privileges</span>
+                    </label>
+                </div>
+                <button type="submit" name="addUserButton"
+                        class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Add User
+                </button>
+            </form>
+        </div>
+
         <!-- Add New Item Form -->
         <div class="bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Add New Item</h2>
             <form action="" method="post" class="space-y-4">
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Item Name</label>
-                    <input type="text" name="item_name"
-                           class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                </div>
-                <div class="mb-4">
+                <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2">Item ID</label>
-                    <input type="text" name="item_id"
+                    <input type="text" name="item_id" required
                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 </div>
-                <div class="mb-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Item Name</label>
+                    <input type="text" name="item_name" required
+                           class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2">Item Cost</label>
-                    <input type="text" name="item_cost"
+                    <input type="text" name="item_cost" required
                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 </div>
-                <div class="mb-4">
+                <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2">Item Quantity</label>
-                    <input type="text" name="item_quantity"
+                    <input type="text" name="item_quantity" required
                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 </div>
                 <button type="submit" name="newItemButton"
@@ -158,18 +208,34 @@ $conn->close();
             </form>
         </div>
 
-        <!-- Increase Quantity Form -->
+        <!-- Remove Item Form -->
         <div class="bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">Increase Quantity</h2>
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Remove Item</h2>
             <form action="" method="post" class="space-y-4">
-                <div class="mb-4">
+                <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2">Item ID</label>
-                    <input type="text" name="increase_item_id"
+                    <input type="text" name="item_id" required
                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 </div>
-                <div class="mb-4">
+                <button type="submit" name="removeItemButton"
+                        class="w-full bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Remove Item
+                </button>
+            </form>
+        </div>
+
+        <!-- Increase Quantity Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Increase Item Quantity</h2>
+            <form action="" method="post" class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Item ID</label>
+                    <input type="text" name="increase_item_id" required
+                           class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2">Amount to Increase</label>
-                    <input type="text" name="amount_increased"
+                    <input type="text" name="amount_increased" required
                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 </div>
                 <button type="submit" name="itemIncreaseButton"
@@ -181,16 +247,16 @@ $conn->close();
 
         <!-- Decrease Quantity Form -->
         <div class="bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">Decrease Quantity</h2>
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Decrease Item Quantity</h2>
             <form action="" method="post" class="space-y-4">
-                <div class="mb-4">
+                <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2">Item ID</label>
-                    <input type="text" name="decrease_item_id"
+                    <input type="text" name="decrease_item_id" required
                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 </div>
-                <div class="mb-4">
+                <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2">Amount to Decrease</label>
-                    <input type="text" name="amount_decreased"
+                    <input type="text" name="amount_decreased" required
                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 </div>
                 <button type="submit" name="itemDecreaseButton"
@@ -199,6 +265,7 @@ $conn->close();
                 </button>
             </form>
         </div>
+
     </div>
 
     <!-- Current Inventory Table -->
@@ -208,17 +275,10 @@ $conn->close();
             <table class="min-w-full bg-white rounded-lg overflow-hidden shadow-md">
                 <thead class="bg-gray-100">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item ID
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item
-                        Name
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item
-                        Quantity
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item
-                        Cost
-                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Quantity</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Cost</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">

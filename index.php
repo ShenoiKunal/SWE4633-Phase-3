@@ -1,9 +1,10 @@
 <?php
+session_start();
 //<editor-fold desc="Database Credentials">
-$servername = "localhost";
-$username = "root";
-$password = "Cloud_Project_1";
-$dbname = "Inventory";
+$servername = "database-1.cn80gk2k0elm.us-east-2.rds.amazonaws.com";
+$username = "admin";
+$password = "07072001";
+$dbname = "Project_Phase3";
 //</editor-fold>
 
 //<editor-fold desc="Create and check connection">
@@ -16,14 +17,14 @@ if ($conn->connect_error) {
 }
 //</editor-fold>
 
-// Check credentials
+//<editor-fold desc="Login Functionality">
 if (isset($_POST['login'])) {
-    $UserId = $_POST['userId'];
+    $username = $_POST['username'];
     $inputPassword = $_POST['password'];
 
     // Prepare statement to prevent SQL injection
-    $stmt = $conn->prepare("SELECT password FROM users WHERE userId = ?");
-    $stmt->bind_param("s", $UserId);
+    $stmt = $conn->prepare("SELECT password, isAdmin FROM AuthorizedUsers WHERE username = ?");
+    $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -32,9 +33,17 @@ if (isset($_POST['login'])) {
         $row = $result->fetch_assoc();
         // Verify the password
         if (password_verify($inputPassword, $row['password'])) {
+            $_SESSION['username'] = $username;
+            $_SESSION['isAdmin'] = $row['isAdmin'];
+
             echo "<script>alert('Login Successful');</script>";
-            // Redirect after successful login
-            header('Location: http://98.82.186.117/mainPage.php');
+
+            // Redirect based on admin status
+            if ($row['isAdmin']) {
+                header('Location: http://ec2-3-134-110-37.us-east-2.compute.amazonaws.com/adminMainPage.php');
+            } else {
+                header('Location: http://ec2-3-134-110-37.us-east-2.compute.amazonaws.com/mainPage.php');
+            }
             exit;
         } else {
             echo "<script>alert('Invalid password');</script>";
@@ -46,6 +55,7 @@ if (isset($_POST['login'])) {
     // Close statement
     $stmt->close();
 }
+//</editor-fold>
 
 $conn->close();
 ?>
@@ -103,12 +113,10 @@ $conn->close();
 <div class="login-container">
     <h2>Inventory Management Portal</h2>
     <form method="post">
-        <input type="text" name="userId" placeholder="Username" required><br>
+        <input type="text" name="username" placeholder="Username" required><br>
         <input type="password" name="password" placeholder="Password" required><br><br>
-        <input type="submit" name="login" value="Login">
+        <button type="submit" name="login">Login</button>
     </form>
-    <br>
-    <a href="mainPage.php">Temporary Login</a>
 </div>
 </body>
 </html>

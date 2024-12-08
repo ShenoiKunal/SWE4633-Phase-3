@@ -1,9 +1,9 @@
 <?php
 // Database credentials
-$servername = "localhost";
-$username = "root";
-$password = "Cloud_Project_1";
-$dbname = "Inventory";
+$servername = "database-1.cn80gk2k0elm.us-east-2.rds.amazonaws.com";
+$username = "admin";
+$password = "07072001";
+$dbname = "Project_Phase3";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);

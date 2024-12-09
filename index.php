@@ -1,65 +1,3 @@
-<?php
-session_start();
-//<editor-fold desc="Database Credentials">
-$servername = "database-1.cn80gk2k0elm.us-east-2.rds.amazonaws.com";
-$username = "admin";
-$password = "07072001";
-$dbname = "Project_Phase3";
-//</editor-fold>
-
-//<editor-fold desc="Create and check connection">
-// Create connection
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-//</editor-fold>
-
-//<editor-fold desc="Login Functionality">
-if (isset($_POST['login'])) {
-    $username = $_POST['username'];
-    $inputPassword = $_POST['password'];
-
-    // Prepare statement to prevent SQL injection
-    $stmt = $conn->prepare("SELECT password, isAdmin FROM AuthorizedUsers WHERE username = ?");
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    // Check if user exists
-    if ($result->num_rows === 1) {
-        $row = $result->fetch_assoc();
-        // Verify the password
-        if (password_verify($inputPassword, $row['password'])) {
-            $_SESSION['username'] = $username;
-            $_SESSION['isAdmin'] = $row['isAdmin'];
-
-            echo "<script>alert('Login Successful');</script>";
-
-            // Redirect based on admin status
-            if ($row['isAdmin']) {
-                header('Location: http://ec2-3-134-110-37.us-east-2.compute.amazonaws.com/adminMainPage.php');
-            } else {
-                header('Location: http://ec2-3-134-110-37.us-east-2.compute.amazonaws.com/mainPage.php');
-            }
-            exit;
-        } else {
-            echo "<script>alert('Invalid password');</script>";
-        }
-    } else {
-        echo "<script>alert('User not found');</script>";
-    }
-
-    // Close statement
-    $stmt->close();
-}
-//</editor-fold>
-
-$conn->close();
-?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -76,6 +14,7 @@ $conn->close();
             height: 100vh;
             margin: 2px;
         }
+
         .login-container {
             background-color: #fff;
             padding: 20px;
@@ -84,10 +23,12 @@ $conn->close();
             width: 280px;
             text-align: center;
         }
+
         h2 {
             margin-bottom: 20px;
             color: #333;
         }
+
         input[type="text"], input[type="password"] {
             width: 90%;
             padding: 10px;
@@ -95,6 +36,7 @@ $conn->close();
             border: 1px solid #ccc;
             border-radius: 4px;
         }
+
         button {
             background-color: #4CAF50;
             color: white;
@@ -104,6 +46,7 @@ $conn->close();
             cursor: pointer;
             width: 100%;
         }
+
         button:hover {
             background-color: #45a049;
         }
@@ -112,11 +55,9 @@ $conn->close();
 <body>
 <div class="login-container">
     <h2>Inventory Management Portal</h2>
-    <form method="post">
-        <input type="text" name="username" placeholder="Username" required><br>
-        <input type="password" name="password" placeholder="Password" required><br><br>
-        <button type="submit" name="login">Login</button>
-    </form>
+    <button type="submit" name="login" onclick="window.location.href='https://us-east-1felamqw8n.auth.us-east-1.amazoncognito.com/login/continue?client_id=6lq1c74ttht2nis6v6iq8u1f2a&redirect_uri=https%3A%2F%2Fproject.appainthecloud.com%2FmainPage.php&response_type=code&scope=email+openid+phone'">
+        Login
+    </button>
 </div>
 </body>
 </html>
